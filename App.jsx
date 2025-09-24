@@ -538,7 +538,10 @@ const PROGRAM = [
 
 export default function App(){
   const [currentDay, setCurrentDay] = useState(todayDow());
-  const dayPlan = useMemo(()=> PROGRAM.find(d=>d.day===currentDay) ?? PROGRAM[0], [currentDay]);
+  const dayPlan = useMemo(()=> {
+    const found = PROGRAM.find(d=>d.day===currentDay);
+    return found || PROGRAM[0];
+  }, [currentDay]);
 
   const initialEquipment = useMemo(()=>{
     const set = new Set();
@@ -547,14 +550,20 @@ export default function App(){
   },[]);
 
   const [equipment, setEquipment] = useState(initialEquipment);
-  const [active, setActive] = useState(() => Object.fromEntries(initialEquipment.map((e) => [e, true])));
+  const [active, setActive] = useState(() => {
+    const initial = {};
+    initialEquipment.forEach((e) => {
+      initial[e] = true;
+    });
+    return initial;
+  });
   const [newEq, setNewEq] = useState("");
 
   useEffect(()=>{
     setActive(prev=>{
       const next = {...prev};
       equipment.forEach(e=> next[e] = e in next ? next[e] : true);
-      Object.keys(next).forEach(k=>{ if(!equipment.includes(k)) delete next[k];});
+      Object.keys(next).forEach(k=>{ if(equipment.indexOf(k) === -1) delete next[k];});
       return next;
     });
   }, [equipment]);
@@ -564,12 +573,17 @@ export default function App(){
   const add = ()=>{
     const k = newEq.trim().toLowerCase();
     if(!k) return;
-    if(!equipment.includes(k)) setEquipment(arr=>[...arr,k]);
+    if(equipment.indexOf(k) === -1) setEquipment(arr=>[...arr,k]);
     setNewEq("");
   };
 
   const visibleExercises = dayPlan.exercises.filter(ex =>
-    ex.equipment.every(eq => active[eq] ?? (equipment.includes(eq) ? false : true))
+    ex.equipment.every(eq => {
+      if(Object.prototype.hasOwnProperty.call(active, eq)){
+        return !!active[eq];
+      }
+      return equipment.indexOf(eq) === -1;
+    })
   );
 
   const dayNames = PROGRAM.map(d=>d.day);
